@@ -591,6 +591,19 @@ def on_update_sarvam_key(new_key: str):
 dashboard.CALLBACKS["update_sarvam_key"] = on_update_sarvam_key
 
 
+def on_remove_key(which: str):
+    """A key was deleted from the dashboard: stop using it immediately."""
+    global BRAIN
+    if which == "claude":
+        BRAIN = "echo"
+        log.info("Claude key deleted; test mode until a new key is added")
+    else:
+        log.info("Sarvam key deleted; using the free voice and Whisper")
+
+
+dashboard.CALLBACKS["remove_key"] = on_remove_key
+
+
 def on_update_voice(voice: str):
     dashboard.update_state(selected_voice=voice)
     log.info("Voice dynamically switched to: %s", voice)

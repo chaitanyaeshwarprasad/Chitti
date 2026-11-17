@@ -121,6 +121,7 @@ STATE_LOCK = threading.Lock()
 CALLBACKS = {
     "update_key": None,
     "update_sarvam_key": None,
+    "remove_key": None,
     "update_voice": None,
     "update_slang": None,
     "test_voice": None,
@@ -552,13 +553,19 @@ def sync_voice_with_keys() -> None:
         log.info("voice set to %s (%s Sarvam key)", new, "with" if has_sarvam else "no")
 
 
-def _set_user_env(name: str, value: str) -> None:
-    """Persist an environment variable for this Windows user without running a shell command."""
+def _set_user_env(name: str, value: str | None) -> None:
+    """Save (or with None, delete) an environment variable for this Windows user, without a shell command."""
     import ctypes
     import winreg
 
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_SET_VALUE) as k:
-        winreg.SetValueEx(k, name, 0, winreg.REG_SZ, value)
+        if value is None:
+            try:
+                winreg.DeleteValue(k, name)
+            except FileNotFoundError:
+                pass
+        else:
+            winreg.SetValueEx(k, name, 0, winreg.REG_SZ, value)
     # tell Windows (and new terminals) that the environment changed
     ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x001A, 0, "Environment", 0x0002, 2000, None)
 
@@ -568,56 +575,60 @@ def _valid_key_text(key: str) -> bool:
     return 8 <= len(key) <= 300 and all(c.isalnum() or c in "-_" for c in key)
 
 
+def _write_env_key(name: str, value: str | None) -> None:
+    """Remove EVERY old line for this key from the server .env file, then add the new one (None = just remove)."""
+    import re
+    env_path = HERE / ".env"
+    old = re.compile(r"^\s*(export\s+)?" + re.escape(name) + r"\s*=")
+    lines = []
+    if env_path.exists():
+        lines = [ln for ln in env_path.read_text(encoding="utf-8-sig").splitlines() if not old.match(ln)]
+    if value:
+        lines.append(f"{name}={value}")
+    env_path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+
+
+def _store_key(name: str, value: str | None) -> bool:
+    """Replace (or remove) a key in all three places Chitti keeps it: the .env file, Windows, this process."""
+    ok = True
+    try:
+        _write_env_key(name, value)
+    except Exception as e:
+        ok = False
+        log.warning("Failed to update .env for %s: %s", name, e)
+    try:
+        _set_user_env(name, value)
+    except Exception as e:
+        log.warning("Failed to update the Windows setting for %s: %s", name, e)
+    if value:
+        os.environ[name] = value
+    else:
+        os.environ.pop(name, None)
+    return ok
+
+
+def check_claude_key(key: str) -> tuple[bool, str]:
+    """Ask Anthropic whether this key works, before it replaces the old one."""
+    try:
+        import anthropic
+        anthropic.Anthropic(api_key=key, timeout=15, max_retries=0).models.list(limit=1)
+        return True, ""
+    except Exception as e:
+        name = type(e).__name__
+        if name in ("AuthenticationError", "PermissionDeniedError"):
+            return False, "This key doesn't work (wrong, copied incompletely, or deleted). Your previous key was kept."
+        log.info("Couldn't check the Claude key (%s); saving it anyway", name)
+        return True, "(couldn't check it online right now)"
+
+
 def save_api_key_disk(key: str) -> bool:
     key = key.strip()
-    if not key:
-        return False
-
-    try:
-        env_path = HERE / ".env"
-        lines = []
-        if env_path.exists():
-            for line in env_path.read_text(encoding="utf-8").splitlines():
-                if not line.startswith("ANTHROPIC_API_KEY="):
-                    lines.append(line)
-        lines.append(f"ANTHROPIC_API_KEY={key}")
-        env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    except Exception as e:
-        log.warning("Failed to write .env: %s", e)
-
-    try:
-        _set_user_env("ANTHROPIC_API_KEY", key)
-    except Exception as e:
-        log.warning("Failed to save Windows environment variable: %s", e)
-
-    os.environ["ANTHROPIC_API_KEY"] = key
-    return True
+    return bool(key) and _store_key("ANTHROPIC_API_KEY", key)
 
 
 def save_sarvam_key_disk(key: str) -> bool:
     key = key.strip()
-    if not key:
-        return False
-
-    try:
-        env_path = HERE / ".env"
-        lines = []
-        if env_path.exists():
-            for line in env_path.read_text(encoding="utf-8").splitlines():
-                if not line.startswith("SARVAM_API_KEY="):
-                    lines.append(line)
-        lines.append(f"SARVAM_API_KEY={key}")
-        env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    except Exception as e:
-        log.warning("Failed to write .env for Sarvam: %s", e)
-
-    try:
-        _set_user_env("SARVAM_API_KEY", key)
-    except Exception as e:
-        log.warning("Failed to save Windows environment variable for Sarvam: %s", e)
-
-    os.environ["SARVAM_API_KEY"] = key
-    return True
+    return bool(key) and _store_key("SARVAM_API_KEY", key)
 
 
 DASHBOARD_HTML = r"""<!DOCTYPE html>
@@ -911,11 +922,11 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
       <h3>API keys and brain<span class="right">stored only on this PC</span></h3>
       <label>Claude (Anthropic) key: required</label>
       <div class="inrow"><input class="in" type="password" id="apiKeyInput" placeholder="sk-ant-…" autocomplete="off"><button class="pill" onclick="saveApiKey()">Save</button></div>
-      <div class="mut small" id="keyCurrentStatus" style="margin-top:6px">Checking…</div>
+      <div class="mut small" style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;gap:8px"><span id="keyCurrentStatus">Checking…</span><button class="linkbtn" id="rmClaude" style="display:none" onclick="removeKey('claude')">Delete key</button></div>
       <div id="keyAlert" class="alert"></div>
       <label>Sarvam key: optional (natural Telugu voice)</label>
       <div class="inrow"><input class="in" type="password" id="sarvamKeyInput" placeholder="Sarvam API key" autocomplete="off"><button class="pill" onclick="saveSarvamKey()">Save</button></div>
-      <div class="mut small" id="sarvamCurrentStatus" style="margin-top:6px">Checking…</div>
+      <div class="mut small" style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;gap:8px"><span id="sarvamCurrentStatus">Checking…</span><button class="linkbtn" id="rmSarvam" style="display:none" onclick="removeKey('sarvam')">Delete key</button></div>
       <div id="sarvamAlert" class="alert"></div>
       <label>Brain</label>
       <select class="in" id="modelSelect" onchange="saveModel()">
@@ -1217,13 +1228,24 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
   async function saveApiKey() {
     const key = $("apiKeyInput").value.trim(); if (!key) return;
     if (!key.startsWith("sk-ant-")) { showAlert("keyAlert", "Claude keys start with sk-ant-", false); return; }
-    const d = await post("/api/save_key", { api_key: key }); showAlert("keyAlert", d.ok ? "Claude key saved on this PC." : (d.error || "Could not save"), d.ok);
+    showAlert("keyAlert", "Checking the key with Anthropic…", true);
+    const d = await post("/api/save_key", { api_key: key });
+    showAlert("keyAlert", d.ok ? (d.replaced ? "New Claude key saved. The old key was deleted from this PC." : "Claude key saved on this PC.") + (d.note ? " " + d.note : "") : (d.error || "Could not save"), d.ok);
     if (d.ok) { $("apiKeyInput").value = ""; poll(); }
   }
   async function saveSarvamKey() {
     const key = $("sarvamKeyInput").value.trim(); if (!key) return;
-    const d = await post("/api/save_sarvam_key", { api_key: key }); showAlert("sarvamAlert", d.ok ? "Sarvam key saved on this PC." : (d.error || "Could not save"), d.ok);
+    const d = await post("/api/save_sarvam_key", { api_key: key });
+    showAlert("sarvamAlert", d.ok ? (d.replaced ? "New Sarvam key saved. The old key was deleted from this PC." : "Sarvam key saved on this PC.") : (d.error || "Could not save"), d.ok);
     if (d.ok) { $("sarvamKeyInput").value = ""; poll(); }
+  }
+
+  async function removeKey(which) {
+    const label = which === "claude" ? "Claude" : "Sarvam";
+    if (!confirm("Delete your " + label + " key from this PC?" + (which === "claude" ? "\nChitti can't reply until you add a key again." : "\nChitti switches to the free voice."))) return;
+    const d = await post("/api/remove_key", { which });
+    showAlert(which === "claude" ? "keyAlert" : "sarvamAlert", d.ok ? label + " key deleted from this PC." : (d.error || "Could not delete"), d.ok);
+    poll();
   }
 
   // device
@@ -1297,6 +1319,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     step("stepBoard", on ? "ok" : "no", on ? "Online at " + s.board_ip : "Not connected yet. See Help.");
     $("keyCurrentStatus").textContent = s.api_key_set ? "● Saved: " + s.api_key_masked : "Not set yet";
     $("sarvamCurrentStatus").textContent = s.sarvam_key_set ? "● Saved: " + s.sarvam_key_masked : "Not set (free voice in use)";
+    $("rmClaude").style.display = s.api_key_set ? "" : "none"; $("rmSarvam").style.display = s.sarvam_key_set ? "" : "none";
     const b = $("banner");
     if (s.ffmpeg_ok === false) { b.className = "banner"; $("bannerText").textContent = "ffmpeg is missing, so Chitti can't speak. Open a new window, run: winget install --id Gyan.FFmpeg -e, then restart Chitti."; }
     else if (!s.api_key_set) { b.className = "banner"; $("bannerText").textContent = "Step 1: add your Claude API key in Settings."; }
@@ -1353,8 +1376,9 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
   async function wizSaveKey() {
     const key = $("wApiKey").value.trim(); if (!key) return;
     if (!key.startsWith("sk-ant-")) { showAlert("wKeyAlert", "That isn't a Claude key. It starts with sk-ant-", false); return; }
+    showAlert("wKeyAlert", "Checking the key with Anthropic…", true);
     const d = await post("/api/save_key", { api_key: key });
-    showAlert("wKeyAlert", d.ok ? "Saved on this PC ✓" : (d.error || "Could not save"), d.ok);
+    showAlert("wKeyAlert", d.ok ? "Saved on this PC ✓" + (d.replaced ? " (old key deleted)" : "") : (d.error || "Could not save"), d.ok);
     if (d.ok) { $("wApiKey").value = ""; wizStatus.api_key_set = true; wizRefresh(); poll(); }
   }
   async function wizSaveSarvam() {
@@ -1519,12 +1543,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if not key or not key.startswith("sk-ant-") or not _valid_key_text(key):
                 self.send_json({"ok": False, "error": "Invalid API key format (must start with sk-ant-)"})
                 return
+            works, note = check_claude_key(key)
+            if not works:
+                self.send_json({"ok": False, "error": note})
+                return
+            had_old = bool(os.environ.get("ANTHROPIC_API_KEY"))
             ok = save_api_key_disk(key)
             if ok:
                 update_state(api_key_set=True, api_key_masked=mask_key(key), brain_mode="claude")
                 if CALLBACKS["update_key"]:
                     CALLBACKS["update_key"](key)
-                self.send_json({"ok": True, "masked": mask_key(key)})
+                self.send_json({"ok": True, "masked": mask_key(key), "replaced": had_old, "note": note})
             else:
                 self.send_json({"ok": False, "error": "Failed to persist API key"})
         elif url.path == "/api/save_sarvam_key":
@@ -1532,14 +1561,29 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if not key or not _valid_key_text(key):
                 self.send_json({"ok": False, "error": "Sarvam API key looks invalid"})
                 return
+            had_old = bool(os.environ.get("SARVAM_API_KEY"))
             ok = save_sarvam_key_disk(key)
             if ok:
                 update_state(sarvam_key_set=True, sarvam_key_masked=mask_key(key), tts_engine="sarvam", stt_engine="sarvam")
                 if CALLBACKS.get("update_sarvam_key"):
                     CALLBACKS["update_sarvam_key"](key)
-                self.send_json({"ok": True, "masked": mask_key(key)})
+                self.send_json({"ok": True, "masked": mask_key(key), "replaced": had_old})
             else:
                 self.send_json({"ok": False, "error": "Failed to persist Sarvam key"})
+        elif url.path == "/api/remove_key":
+            which = payload.get("which")
+            name = {"claude": "ANTHROPIC_API_KEY", "sarvam": "SARVAM_API_KEY"}.get(which)
+            if not name:
+                self.send_json({"ok": False, "error": "Unknown key"})
+                return
+            _store_key(name, None)
+            if which == "claude":
+                update_state(api_key_set=False, api_key_masked="", brain_mode="echo")
+            else:
+                update_state(sarvam_key_set=False, sarvam_key_masked="", tts_engine="edge-tts", stt_engine="whisper")
+            if CALLBACKS.get("remove_key"):
+                CALLBACKS["remove_key"](which)
+            self.send_json({"ok": True})
         elif url.path == "/api/save_voice":
             voice = str(payload.get("voice", "")).strip()
             if not voice.startswith(("sarvam:", "sarvam3:", "edge:")):
