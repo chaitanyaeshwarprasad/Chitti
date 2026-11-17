@@ -1,0 +1,59 @@
+<!doctype html>
+<!-- Chitti full body, static parts only (no eyes/mouth/jet glow), fitted to the 466 px round screen.
+     Same drawing as the approved preview: design units mapped by
+       screen = 233 + (p - (160,168)) * 1.045
+     firmware/main/face.c uses the matching head centre (238.2, 182.8) and scale 1.045. -->
+<html><head><meta charset="utf-8"><title>Chitti full body static</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas id="c" width="466" height="466"></canvas>
+<script>
+const x = document.getElementById('c').getContext('2d');
+const OUT = '#1f4250', TEAL1 = '#4fdcd2', TEAL2 = '#139091';
+const ell = (cx, cy, rx, ry, r) => { x.beginPath(); x.ellipse(cx, cy, rx, ry, r || 0, 0, 7); };
+function grad(cx, cy, r, a, b) { const g = x.createRadialGradient(cx - r * .35, cy - r * .45, r * .1, cx, cy, r * 1.1); g.addColorStop(0, a); g.addColorStop(1, b); return g; }
+function outline(w) { x.lineWidth = w || 2.4; x.strokeStyle = OUT; x.stroke(); }
+function capsule(ax, ay, bx, by, w, fill) { x.save(); x.lineCap = 'round'; x.strokeStyle = OUT; x.lineWidth = w + 4; x.beginPath(); x.moveTo(ax, ay); x.lineTo(bx, by); x.stroke(); x.strokeStyle = fill; x.lineWidth = w; x.stroke(); x.restore(); }
+function star(px, py, r) { x.beginPath(); for (let i = 0; i < 10; i++) { const rr = i % 2 ? r * .45 : r, a = i * .6283 - 1.571; x.lineTo(px + Math.cos(a) * rr, py + Math.sin(a) * rr); } x.closePath(); }
+function glove(sd) {
+  for (let i = 0; i < 4; i++) { const a = (i - 1.5) * .06; x.save(); x.translate((i - 1.5) * 5.2, 15); x.rotate(-a); x.beginPath(); x.roundRect(-3.3, -2, 6.6, 11, 3.3); x.fillStyle = '#f4f6f9'; x.fill(); outline(1.8); x.restore(); }
+  ell(0, 9, 12, 10.5); x.fillStyle = grad(0, 9, 12, '#ffffff', '#d3d7df'); x.fill(); outline(2);
+  x.save(); x.translate(-11 * sd, 6); x.rotate(.7 * sd); x.beginPath(); x.roundRect(-3.4, -1, 6.8, 13, 3.4); x.fillStyle = '#f4f6f9'; x.fill(); outline(1.8); x.restore();
+}
+function arm(sx, sy, sd, a1, a2) {
+  const d1 = [sd * Math.sin(a1), Math.cos(a1)], ex = sx + d1[0] * 25, ey = sy + d1[1] * 25, a = a1 + a2, d2 = [sd * Math.sin(a), Math.cos(a)], wx = ex + d2[0] * 23, wy = ey + d2[1] * 23;
+  capsule(sx, sy, ex, ey, 16, '#eef0f5'); x.fillStyle = TEAL2; ell(ex, ey, 7, 7); x.fill(); outline(1.8);
+  capsule(ex, ey, wx, wy, 17, '#f6f7fa');
+  x.save(); x.translate(wx, wy); x.rotate(Math.atan2(d2[1], d2[0]) - Math.PI / 2); x.fillStyle = TEAL1; x.beginPath(); x.roundRect(-10, -6, 20, 8, 4); x.fill(); outline(1.8); glove(sd); x.restore();
+}
+function body() {
+  x.fillStyle = '#24424e'; x.beginPath(); x.roundRect(-14, -58, 28, 16, 6); x.fill();
+  x.fillStyle = grad(0, 0, 56, '#ffffff', '#c3c9d3'); ell(0, 0, 46, 54); x.fill(); outline(3);
+  x.save(); ell(0, 0, 46, 54); x.clip(); x.fillStyle = TEAL2; x.fillRect(-60, 30, 120, 7); x.fillStyle = '#1d3b47'; x.fillRect(-60, 40, 120, 4);
+  x.fillStyle = '#3fbfd0'; x.fillRect(-60, 31.5, 120, 2.5); x.restore();
+  for (const s of [-1, 1]) { x.fillStyle = grad(s * 40, -34, 16, TEAL1, TEAL2); ell(s * 38, -34, 15, 10, s * .5); x.fill(); outline(2.2); }
+  x.fillStyle = grad(0, 10, 14, '#9fe9f2', '#11a6bd'); x.beginPath(); x.moveTo(-15, 2); x.lineTo(15, 2); x.lineTo(0, 20); x.closePath(); x.fill(); outline(2);
+  x.fillStyle = '#ffd23f'; star(-20, -20, 9); x.fill(); x.lineWidth = 1.8; x.strokeStyle = '#b07b0b'; x.stroke();
+}
+function head() {
+  x.strokeStyle = '#33505a'; x.lineWidth = 4; x.lineCap = 'round'; x.beginPath(); x.moveTo(30, -60); x.quadraticCurveTo(36, -84, 42, -98); x.stroke();
+  x.fillStyle = '#d8dde4'; x.beginPath(); x.moveTo(24, -58); x.lineTo(36, -58); x.lineTo(33, -70); x.lineTo(27, -70); x.closePath(); x.fill(); outline(1.6);
+  x.fillStyle = grad(43, -103, 9, '#7fd8e2', '#0d6f80'); ell(43, -103, 8.5, 8.5); x.fill(); outline(1.8);
+  x.fillStyle = grad(0, 0, 80, '#ffffff', '#c7ccd6'); ell(0, 0, 80, 68); x.fill(); outline(3);
+  for (const s of [-1, 1]) { x.fillStyle = grad(s * 80, 6, 18, '#7fe9e2', '#0f7f86'); ell(s * 80, 6, 15, 22); x.fill(); outline(2.4); x.strokeStyle = '#2bb7c4'; x.lineWidth = 2.4; ell(s * 82, 6, 7, 12); x.stroke(); }
+  const vg = x.createLinearGradient(0, -40, 0, 52); vg.addColorStop(0, '#1b3850'); vg.addColorStop(1, '#0a1824');
+  x.fillStyle = vg; x.beginPath(); x.roundRect(-62, -40, 124, 92, [40, 40, 46, 46]); x.fill(); outline(3);
+  x.fillStyle = 'rgba(255,255,255,.06)'; ell(-24, -30, 40, 12, -.15); x.fill();
+  const hg = x.createLinearGradient(-90, -100, 40, -30); hg.addColorStop(0, TEAL1); hg.addColorStop(1, TEAL2); x.fillStyle = hg;
+  x.beginPath(); x.moveTo(-58, -40); x.bezierCurveTo(-98, -54, -112, -30, -114, -14); x.bezierCurveTo(-98, -28, -80, -34, -62, -28); x.closePath(); x.fill(); outline(2.4);
+  x.beginPath(); x.moveTo(-76, -26); x.bezierCurveTo(-90, -64, -52, -100, -6, -92); x.bezierCurveTo(22, -88, 44, -74, 52, -56); x.bezierCurveTo(34, -66, 16, -64, 6, -60); x.bezierCurveTo(20, -52, 24, -42, 20, -34); x.bezierCurveTo(6, -48, -16, -54, -32, -50); x.bezierCurveTo(-44, -42, -54, -36, -62, -22); x.bezierCurveTo(-66, -28, -70, -28, -76, -26); x.closePath(); x.fill(); outline(2.4);
+  x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 2.5; x.lineCap = 'round'; x.beginPath(); x.moveTo(-50, -62); x.quadraticCurveTo(-24, -84, 10, -80); x.moveTo(-60, -48); x.quadraticCurveTo(-40, -64, -18, -66); x.stroke();
+  x.strokeStyle = 'rgba(10,80,84,.55)'; x.lineWidth = 2; x.beginPath(); x.moveTo(-40, -56); x.quadraticCurveTo(-10, -74, 26, -66); x.stroke();
+}
+x.fillStyle = '#000'; x.fillRect(0, 0, 466, 466);
+x.save(); x.beginPath(); x.arc(233, 233, 233, 0, 7); x.clip();
+x.translate(233, 233); x.scale(1.045, 1.045); x.translate(-160, -168);
+x.save(); x.translate(165, 222); body(); x.restore();
+x.save(); x.translate(165, 120); head(); x.restore();
+x.save(); x.translate(165, 222); arm(-46, -26, -1, .45, -.3); arm(46, -26, 1, .45, -.3); x.restore();
+x.restore();
+</script></body></html>

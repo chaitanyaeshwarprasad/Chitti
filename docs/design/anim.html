@@ -1,0 +1,127 @@
+<!doctype html>
+<!-- Chitti full-body animation frames (no face: the firmware draws the glowing face live on top).
+     Open as anim.html#wave to render that animation as a sheet of 466x466 cells, 6 per row.
+     The <pre id="meta"> holds per-frame head and jet positions (screen pixels) for the firmware.
+     Mapping matches face_full.html: screen = 233 + (p - (160,168)) * 1.045 -->
+<html><head><meta charset="utf-8"><title>Chitti anim</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}pre{display:none}</style></head>
+<body><canvas id="c"></canvas><pre id="meta"></pre>
+<script>
+const CELL = 466, COLS = 6, S = 1.045;
+const OUT = '#1f4250', TEAL1 = '#4fdcd2', TEAL2 = '#139091';
+const cv = document.getElementById('c'), x = cv.getContext('2d');
+const ell = (cx, cy, rx, ry, r) => { x.beginPath(); x.ellipse(cx, cy, rx, ry, r || 0, 0, 7); };
+function grad(cx, cy, r, a, b) { const g = x.createRadialGradient(cx - r * .35, cy - r * .45, r * .1, cx, cy, r * 1.1); g.addColorStop(0, a); g.addColorStop(1, b); return g; }
+function outline(w) { x.lineWidth = w || 2.4; x.strokeStyle = OUT; x.stroke(); }
+function capsule(ax, ay, bx, by, w, fill) { x.save(); x.lineCap = 'round'; x.strokeStyle = OUT; x.lineWidth = w + 4; x.beginPath(); x.moveTo(ax, ay); x.lineTo(bx, by); x.stroke(); x.strokeStyle = fill; x.lineWidth = w; x.stroke(); x.restore(); }
+function star(px, py, r) { x.beginPath(); for (let i = 0; i < 10; i++) { const rr = i % 2 ? r * .45 : r, a = i * .6283 - 1.571; x.lineTo(px + Math.cos(a) * rr, py + Math.sin(a) * rr); } x.closePath(); }
+
+function glove(kind, sd) {
+  x.fillStyle = grad(0, 10, 14, '#ffffff', '#cfd3dc');
+  if (kind === 'fist' || kind === 'point') {
+    ell(0, 11, 12.5, 12); x.fill(); outline(2);
+    x.strokeStyle = '#9aa7b2'; x.lineWidth = 1.4; for (let i = -1; i <= 1; i++) { x.beginPath(); x.moveTo(i * 5, 16); x.lineTo(i * 5, 21); x.stroke(); }
+    if (kind === 'point') { x.save(); x.translate(4 * sd, 18); x.rotate(-.5 * sd); x.beginPath(); x.roundRect(-3.6, 0, 7.2, 16, 3.6); x.fillStyle = '#f6f7fa'; x.fill(); outline(2); x.restore(); }
+    ell(-11 * sd, 8, 4.5, 6.5, .4 * sd); x.fillStyle = '#eef0f4'; x.fill(); outline(1.8); return;
+  }
+  const spread = kind === 'open' ? 0.2 : 0.06, len = kind === 'open' ? 15 : 11;
+  for (let i = 0; i < 4; i++) { const a = (i - 1.5) * spread; x.save(); x.translate((i - 1.5) * 5.2, 15); x.rotate(-a); x.beginPath(); x.roundRect(-3.3, -2, 6.6, len, 3.3); x.fillStyle = '#f4f6f9'; x.fill(); outline(1.8); x.restore(); }
+  ell(0, 9, 12, 10.5); x.fillStyle = grad(0, 9, 12, '#ffffff', '#d3d7df'); x.fill(); outline(2);
+  x.save(); x.translate(-11 * sd, 6); x.rotate(.7 * sd); x.beginPath(); x.roundRect(-3.4, -1, 6.8, 13, 3.4); x.fillStyle = '#f4f6f9'; x.fill(); outline(1.8); x.restore();
+}
+function arm(sx, sy, sd, a1, a2, hand) {
+  const d1 = [sd * Math.sin(a1), Math.cos(a1)], ex = sx + d1[0] * 25, ey = sy + d1[1] * 25, a = a1 + a2, d2 = [sd * Math.sin(a), Math.cos(a)], wx = ex + d2[0] * 23, wy = ey + d2[1] * 23;
+  capsule(sx, sy, ex, ey, 16, '#eef0f5'); x.fillStyle = TEAL2; ell(ex, ey, 7, 7); x.fill(); outline(1.8);
+  capsule(ex, ey, wx, wy, 17, '#f6f7fa');
+  x.save(); x.translate(wx, wy); x.rotate(Math.atan2(d2[1], d2[0]) - Math.PI / 2); x.fillStyle = TEAL1; x.beginPath(); x.roundRect(-10, -6, 20, 8, 4); x.fill(); outline(1.8); glove(hand, sd); x.restore();
+}
+function body() {
+  x.fillStyle = '#24424e'; x.beginPath(); x.roundRect(-14, -58, 28, 16, 6); x.fill();
+  x.fillStyle = grad(0, 0, 56, '#ffffff', '#c3c9d3'); ell(0, 0, 46, 54); x.fill(); outline(3);
+  x.save(); ell(0, 0, 46, 54); x.clip(); x.fillStyle = TEAL2; x.fillRect(-60, 30, 120, 7); x.fillStyle = '#1d3b47'; x.fillRect(-60, 40, 120, 4);
+  x.fillStyle = '#3fbfd0'; x.fillRect(-60, 31.5, 120, 2.5); x.restore();
+  for (const s of [-1, 1]) { x.fillStyle = grad(s * 40, -34, 16, TEAL1, TEAL2); ell(s * 38, -34, 15, 10, s * .5); x.fill(); outline(2.2); }
+  x.fillStyle = grad(0, 10, 14, '#9fe9f2', '#11a6bd'); x.beginPath(); x.moveTo(-15, 2); x.lineTo(15, 2); x.lineTo(0, 20); x.closePath(); x.fill(); outline(2);
+  x.fillStyle = '#ffd23f'; star(-20, -20, 9); x.fill(); x.lineWidth = 1.8; x.strokeStyle = '#b07b0b'; x.stroke();
+}
+function head() {
+  x.strokeStyle = '#33505a'; x.lineWidth = 4; x.lineCap = 'round'; x.beginPath(); x.moveTo(30, -60); x.quadraticCurveTo(36, -84, 42, -98); x.stroke();
+  x.fillStyle = '#d8dde4'; x.beginPath(); x.moveTo(24, -58); x.lineTo(36, -58); x.lineTo(33, -70); x.lineTo(27, -70); x.closePath(); x.fill(); outline(1.6);
+  x.fillStyle = grad(43, -103, 9, '#7fd8e2', '#0d6f80'); ell(43, -103, 8.5, 8.5); x.fill(); outline(1.8);
+  x.fillStyle = grad(0, 0, 80, '#ffffff', '#c7ccd6'); ell(0, 0, 80, 68); x.fill(); outline(3);
+  for (const s of [-1, 1]) { x.fillStyle = grad(s * 80, 6, 18, '#7fe9e2', '#0f7f86'); ell(s * 80, 6, 15, 22); x.fill(); outline(2.4); x.strokeStyle = '#2bb7c4'; x.lineWidth = 2.4; ell(s * 82, 6, 7, 12); x.stroke(); }
+  const vg = x.createLinearGradient(0, -40, 0, 52); vg.addColorStop(0, '#1b3850'); vg.addColorStop(1, '#0a1824');
+  x.fillStyle = vg; x.beginPath(); x.roundRect(-62, -40, 124, 92, [40, 40, 46, 46]); x.fill(); outline(3);
+  x.fillStyle = 'rgba(255,255,255,.06)'; ell(-24, -30, 40, 12, -.15); x.fill();
+  const hg = x.createLinearGradient(-90, -100, 40, -30); hg.addColorStop(0, TEAL1); hg.addColorStop(1, TEAL2); x.fillStyle = hg;
+  x.beginPath(); x.moveTo(-58, -40); x.bezierCurveTo(-98, -54, -112, -30, -114, -14); x.bezierCurveTo(-98, -28, -80, -34, -62, -28); x.closePath(); x.fill(); outline(2.4);
+  x.beginPath(); x.moveTo(-76, -26); x.bezierCurveTo(-90, -64, -52, -100, -6, -92); x.bezierCurveTo(22, -88, 44, -74, 52, -56); x.bezierCurveTo(34, -66, 16, -64, 6, -60); x.bezierCurveTo(20, -52, 24, -42, 20, -34); x.bezierCurveTo(6, -48, -16, -54, -32, -50); x.bezierCurveTo(-44, -42, -54, -36, -62, -22); x.bezierCurveTo(-66, -28, -70, -28, -76, -26); x.closePath(); x.fill(); outline(2.4);
+  x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 2.5; x.lineCap = 'round'; x.beginPath(); x.moveTo(-50, -62); x.quadraticCurveTo(-24, -84, 10, -80); x.moveTo(-60, -48); x.quadraticCurveTo(-40, -64, -18, -66); x.stroke();
+  x.strokeStyle = 'rgba(10,80,84,.55)'; x.lineWidth = 2; x.beginPath(); x.moveTo(-40, -56); x.quadraticCurveTo(-10, -74, 26, -66); x.stroke();
+}
+
+// toy car around Chitti's lower body; wheel angle w, optional speed lines behind
+function car(w, speed) {
+  x.save(); x.translate(0, 40);
+  if (speed) { x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 3; x.lineCap = 'round';
+    for (let i = 0; i < 3; i++) { x.beginPath(); x.moveTo(-90 - i * 6, -6 + i * 12); x.lineTo(-90 - i * 6 - 26 * speed, -6 + i * 12); x.stroke(); } }
+  const g = x.createLinearGradient(0, -24, 0, 24); g.addColorStop(0, '#ff8f6b'); g.addColorStop(1, '#d4482a');
+  x.fillStyle = g; x.beginPath(); x.roundRect(-74, -20, 148, 40, 16); x.fill(); outline(3);
+  x.fillStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.roundRect(-64, -15, 92, 6, 3); x.fill();
+  x.fillStyle = '#ffe27a'; ell(70, -4, 5, 7); x.fill(); outline(1.5);
+  x.fillStyle = '#bfe8ff'; x.beginPath(); x.moveTo(44, -20); x.lineTo(58, -44); x.lineTo(64, -44); x.lineTo(56, -20); x.closePath(); x.fill(); outline(2);
+  for (const wx of [-46, 46]) {
+    x.fillStyle = '#1b1b20'; ell(wx, 22, 17, 17); x.fill(); outline(2.4);
+    x.save(); x.translate(wx, 22); x.rotate(w); x.fillStyle = '#c9c8d2'; ell(0, 0, 6.5, 6.5); x.fill();
+    x.strokeStyle = '#c9c8d2'; x.lineWidth = 2.5; for (let i = 0; i < 3; i++) { x.rotate(2.094); x.beginPath(); x.moveTo(0, 0); x.lineTo(0, 12); x.stroke(); } x.restore();
+  }
+  x.restore();
+  x.fillStyle = '#2a2a30'; ell(34, 8, 10, 10); x.fill(); x.strokeStyle = '#555'; x.lineWidth = 2; ell(34, 8, 10, 10); x.stroke();  // steering wheel
+}
+
+// ---- poses: each returns {dx, dy, tilt, L:[a1,a2,hand], R:[a1,a2,hand]} for phase u in [0,1)
+const REL = [.45, -.3, 'relaxed'];
+const TAU = Math.PI * 2;
+const ANIMS = {
+  idle:  { n: 1,  fps: 1,  loop: 1, pose: u => ({ dx: 0, dy: 0, tilt: 0, L: REL, R: REL }) },
+  wave:  { n: 12, fps: 12, loop: 1, pose: u => ({ dx: 0, dy: -2 * Math.sin(u * TAU), tilt: -.03, L: [.5, -.4, 'relaxed'], R: [2.55, .25 + .45 * Math.sin(u * TAU * 2), 'open'] }) },
+  angry: { n: 8,  fps: 12, loop: 1, pose: u => { const k = Math.sin(u * TAU * 2); return { dx: 1.6 * k, dy: 0, tilt: 0, L: [1.35, -2.35 + .2 * k, 'fist'], R: [1.35, -2.35 - .2 * k, 'fist'] }; } },
+  laugh: { n: 10, fps: 12, loop: 1, pose: u => ({ dx: 0, dy: -7 * Math.abs(Math.sin(u * TAU)), tilt: .04 * Math.sin(u * TAU * 2), L: [.35, -1.5, 'open'], R: [.35, -1.5, 'open'] }) },
+  think: { n: 1,  fps: 1,  loop: 1, pose: u => ({ dx: 0, dy: 0, tilt: 0, L: [.5, -.4, 'relaxed'], R: [.35, -2.75, 'point'] }) },
+  talk:  { n: 12, fps: 10, loop: 1, pose: u => ({ dx: 0, dy: -1.5 * Math.sin(u * TAU), tilt: 0, L: REL, R: [.95 + .2 * Math.sin(u * TAU), -1.3 + .25 * Math.sin(u * TAU * 2), 'open'] }) },
+  dance: { n: 16, fps: 12, loop: 1, pose: u => { const s = Math.sin(u * TAU * 2); return { dx: 14 * Math.sin(u * TAU), dy: -5 * Math.abs(s), tilt: .07 * Math.sin(u * TAU), L: [1.6 + 1.1 * s, -.6, 'open'], R: [1.6 - 1.1 * s, -.6, 'open'] }; } },
+  leave: { n: 16, fps: 14, loop: 0, pose: u => ({ dx: 340 * u * u, dy: -30 * u, tilt: .08, L: [.25, .1, 'relaxed'], R: [.25, .1, 'relaxed'] }) },
+  enter: { n: 16, fps: 14, loop: 0, pose: u => { const v = 1 - u; return { dx: -340 * v * v, dy: -30 * v, tilt: -.08 * v, L: [.25 + .2 * u, .1 - .4 * u, 'relaxed'], R: [.25 + .2 * u, .1 - .4 * u, 'relaxed'] }; } },
+  sleep: { n: 1,  fps: 1,  loop: 1, pose: u => ({ dx: 0, dy: 4, tilt: 0, L: [.22, -.05, 'relaxed'], R: [.22, -.05, 'relaxed'] }) },
+  happy: { n: 12, fps: 12, loop: 1, pose: u => { const b = Math.abs(Math.sin(u * TAU)); return { dx: 0, dy: -8 * b, tilt: .04 * Math.sin(u * TAU), L: [1.2 + .3 * b, -.5, 'open'], R: [1.2 + .3 * b, -.5, 'open'] }; } },
+  sad:   { n: 8,  fps: 6,  loop: 1, pose: u => ({ dx: 2 * Math.sin(u * TAU), dy: 8, tilt: .09 + .02 * Math.sin(u * TAU), L: [.12, .05, 'relaxed'], R: [.12, .05, 'relaxed'] }) },
+  surprised: { n: 8, fps: 14, loop: 0, pose: u => { const j = Math.sin(Math.min(1, u * 1.6) * Math.PI); return { dx: 0, dy: -14 * j, tilt: -.05 * j, L: [2.3, .35, 'open'], R: [2.3, .35, 'open'] }; } },
+  playful: { n: 12, fps: 10, loop: 1, pose: u => ({ dx: 9 * Math.sin(u * TAU), dy: -3 * Math.abs(Math.sin(u * TAU)), tilt: .08 * Math.sin(u * TAU), L: [1.0, -2.3, 'fist'], R: [2.1 + .3 * Math.sin(u * TAU * 2), .3, 'open'] }) },
+  yawn:  { n: 12, fps: 8,  loop: 0, pose: u => { const k = Math.sin(u * Math.PI); return { dx: 0, dy: -4 * k, tilt: -.04 * k, L: [.3 + 2.4 * k, .1, 'open'], R: [.3 + 2.4 * k, .1, 'open'] }; } },
+  drive: { n: 8,  fps: 12, loop: 1, car: 1, pose: u => ({ dx: 0, dy: -2 * Math.abs(Math.sin(u * TAU)), tilt: 0, wheel: u * TAU, speed: .6, L: [.9, -1.1, 'fist'], R: [.9, -1.1, 'fist'] }) },
+  carleave: { n: 18, fps: 14, loop: 0, car: 1, pose: u => ({ dx: 380 * u * u, dy: -2 * Math.abs(Math.sin(u * 9)), tilt: -.03, wheel: u * TAU * 3, speed: u, L: [.9, -1.1, 'fist'], R: [2.4, .3 + .4 * Math.sin(u * 30), 'open'] }) },
+  carenter: { n: 18, fps: 14, loop: 0, car: 1, pose: u => { const v = 1 - u; return { dx: -380 * v * v, dy: -2 * Math.abs(Math.sin(u * 9)), tilt: 0, wheel: u * TAU * 3, speed: v, L: [.9, -1.1, 'fist'], R: [.9, -1.1, 'fist'] }; } },
+};
+
+const name = (location.hash || '#idle').slice(1), A = ANIMS[name];
+const rows = Math.ceil(A.n / COLS), cols = Math.min(A.n, COLS);
+cv.width = cols * CELL; cv.height = rows * CELL;
+x.fillStyle = '#000'; x.fillRect(0, 0, cv.width, cv.height);
+const toScreen = (px, py) => [233 + (px - 160) * S, 233 + (py - 168) * S];
+const meta = [];
+for (let f = 0; f < A.n; f++) {
+  const u = A.n > 1 ? f / A.n : 0, P = A.pose(u);
+  const ox = (f % COLS) * CELL, oy = Math.floor(f / COLS) * CELL;
+  x.save(); x.translate(ox, oy); x.beginPath(); x.rect(0, 0, CELL, CELL); x.clip();
+  x.translate(233, 233); x.scale(S, S); x.translate(-160, -168);
+  const bx = 165 + P.dx, by = 222 + P.dy, hx = 165 + P.dx, hy = 120 + P.dy;
+  x.save(); x.translate(bx, by); body(); x.restore();
+  x.save(); x.translate(hx, hy); x.rotate(P.tilt); head(); x.restore();
+  if (A.car) { x.save(); x.translate(bx, by); car(P.wheel || 0, P.speed || 0); x.restore(); }
+  x.save(); x.translate(bx, by); arm(-46, -26, -1, P.L[0], P.L[1], P.L[2]); arm(46, -26, 1, P.R[0], P.R[1], P.R[2]); x.restore();
+  x.restore();
+  const [shx, shy] = toScreen(hx, hy), [sjx, sjy] = toScreen(bx, by + 66);
+  meta.push({ hx: +shx.toFixed(1), hy: +shy.toFixed(1), jx: A.car ? -999 : +sjx.toFixed(1), jy: +sjy.toFixed(1) });  // no jet in the car
+}
+document.getElementById('meta').textContent = JSON.stringify({ name, n: A.n, fps: A.fps, loop: A.loop, cols: COLS, frames: meta });
+</script></body></html>

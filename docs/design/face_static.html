@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- Chitti face close-up, static parts only (helmet, hair, ear pods, antenna, empty visor).
+     Rendered to 466x466 and stored in the firmware; eyes and mouth are animated live on top.
+     Layout constants must match firmware/main/face.c (HEAD_X/HEAD_Y/S). -->
+<html><head><meta charset="utf-8"><title>Chitti face static</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas id="c" width="466" height="466"></canvas>
+<script>
+const x = document.getElementById('c').getContext('2d');
+const HEAD_X = 240, HEAD_Y = 252, S = 1.85;   // head centre on the 466 px screen and scale
+const OUT = '#1f4250', TEAL1 = '#4fdcd2', TEAL2 = '#139091', CY = '#5ff6ff';
+function grad(cx, cy, r, a, b) { const g = x.createRadialGradient(cx - r * .35, cy - r * .45, r * .1, cx, cy, r * 1.1); g.addColorStop(0, a); g.addColorStop(1, b); return g; }
+function ell(cx, cy, rx, ry, r) { x.beginPath(); x.ellipse(cx, cy, rx, ry, r || 0, 0, 7); }
+function outline(w) { x.lineWidth = w || 2.4; x.strokeStyle = OUT; x.stroke(); }
+function star(px, py, r) { x.beginPath(); for (let i = 0; i < 10; i++) { const rr = i % 2 ? r * .45 : r, a = i * .6283 - 1.571; x.lineTo(px + Math.cos(a) * rr, py + Math.sin(a) * rr); } x.closePath(); }
+
+x.fillStyle = '#000'; x.fillRect(0, 0, 466, 466);
+x.save(); x.beginPath(); x.arc(233, 233, 233, 0, 7); x.clip();
+x.translate(HEAD_X, HEAD_Y); x.scale(S, S);
+
+// body and shoulders peeking in at the bottom
+x.save(); x.translate(0, 102);
+x.fillStyle = '#24424e'; x.beginPath(); x.roundRect(-14, -58, 28, 16, 6); x.fill();
+x.fillStyle = grad(0, 0, 56, '#ffffff', '#c3c9d3'); ell(0, 0, 46, 54); x.fill(); outline(3);
+for (const s of [-1, 1]) { x.fillStyle = grad(s * 40, -34, 16, TEAL1, TEAL2); ell(s * 38, -34, 15, 10, s * .5); x.fill(); outline(2.2); }
+x.fillStyle = '#ffd23f'; star(-20, -20, 9); x.fill(); x.lineWidth = 1.8; x.strokeStyle = '#b07b0b'; x.stroke();
+x.restore();
+
+// antenna (the ball is drawn dim; firmware adds the glow)
+x.strokeStyle = '#33505a'; x.lineWidth = 4; x.lineCap = 'round'; x.beginPath(); x.moveTo(30, -60); x.quadraticCurveTo(36, -84, 42, -98); x.stroke();
+x.fillStyle = '#d8dde4'; x.beginPath(); x.moveTo(24, -58); x.lineTo(36, -58); x.lineTo(33, -70); x.lineTo(27, -70); x.closePath(); x.fill(); outline(1.6);
+x.fillStyle = grad(43, -103, 9, '#7fd8e2', '#0d6f80'); ell(43, -103, 8.5, 8.5); x.fill(); outline(1.8);
+
+// helmet
+x.fillStyle = grad(0, 0, 80, '#ffffff', '#c7ccd6'); ell(0, 0, 80, 68); x.fill(); outline(3);
+for (const s of [-1, 1]) {
+  x.fillStyle = grad(s * 80, 6, 18, '#7fe9e2', '#0f7f86'); ell(s * 80, 6, 15, 22); x.fill(); outline(2.4);
+  x.strokeStyle = '#2bb7c4'; x.lineWidth = 2.4; ell(s * 82, 6, 7, 12); x.stroke();
+}
+
+// visor (empty: the firmware draws the glowing face here)
+const vg = x.createLinearGradient(0, -40, 0, 52); vg.addColorStop(0, '#1b3850'); vg.addColorStop(1, '#0a1824');
+x.fillStyle = vg; x.beginPath(); x.roundRect(-62, -40, 124, 92, [40, 40, 46, 46]); x.fill(); outline(3);
+x.fillStyle = 'rgba(255,255,255,.06)'; ell(-24, -30, 40, 12, -.15); x.fill();
+
+// hair
+const hg = x.createLinearGradient(-90, -100, 40, -30); hg.addColorStop(0, TEAL1); hg.addColorStop(1, TEAL2); x.fillStyle = hg;
+x.beginPath(); x.moveTo(-58, -40); x.bezierCurveTo(-98, -54, -112, -30, -114, -14); x.bezierCurveTo(-98, -28, -80, -34, -62, -28); x.closePath(); x.fill(); outline(2.4);
+x.beginPath(); x.moveTo(-76, -26); x.bezierCurveTo(-90, -64, -52, -100, -6, -92); x.bezierCurveTo(22, -88, 44, -74, 52, -56); x.bezierCurveTo(34, -66, 16, -64, 6, -60); x.bezierCurveTo(20, -52, 24, -42, 20, -34); x.bezierCurveTo(6, -48, -16, -54, -32, -50); x.bezierCurveTo(-44, -42, -54, -36, -62, -22); x.bezierCurveTo(-66, -28, -70, -28, -76, -26); x.closePath(); x.fill(); outline(2.4);
+x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 2.5; x.lineCap = 'round'; x.beginPath(); x.moveTo(-50, -62); x.quadraticCurveTo(-24, -84, 10, -80); x.moveTo(-60, -48); x.quadraticCurveTo(-40, -64, -18, -66); x.stroke();
+x.strokeStyle = 'rgba(10,80,84,.55)'; x.lineWidth = 2; x.beginPath(); x.moveTo(-40, -56); x.quadraticCurveTo(-10, -74, 26, -66); x.stroke();
+x.restore();
+</script></body></html>
