@@ -6,6 +6,7 @@ She runs on a small round AMOLED board. The board connects over your Wi-Fi to a 
 
 > **Free and open source.** You only pay for your own API use, usually a few rupees a day.
 > **Created by [Chaitanya Eshwar Prasad](https://chaitanyaeshwarprasad.com)**. Watch the setup video and more on [YouTube](https://www.youtube.com/@chaitanya.eshwar.prasad) and [Instagram @acep.tech.in.telugu](https://instagram.com/acep.tech.in.telugu).
+> **Want to build one yourself?** [Chitti Junior](https://github.com/chaitanyaeshwarprasad/chitti-junior) is the same Chitti, assembled from a few common parts.
 
 [![Website](https://img.shields.io/badge/Website-chaitanyaeshwarprasad.com-005F9E?style=for-the-badge&logo=google-chrome&logoColor=white)](https://chaitanyaeshwarprasad.com)
 [![GitHub](https://img.shields.io/badge/GitHub-chaitanyaeshwarprasad-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/chaitanyaeshwarprasad)
