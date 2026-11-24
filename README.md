@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/chitti.png" alt="Chitti" width="230">
+
 # Chitti: a Telugu AI friend that lives on a tiny round screen
 
 [![Release](https://img.shields.io/github/v/release/chaitanyaeshwarprasad/chitti?style=flat-square&color=7c3aed)](https://github.com/chaitanyaeshwarprasad/chitti/releases/latest)
